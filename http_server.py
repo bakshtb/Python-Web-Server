@@ -82,7 +82,7 @@ def handle_client_request(resource, client_socket):
         print("ERROR", ex)
 
 
-def is_valid_HTTP(_str):
+def is_valid_protocol(_str):
     """
     Checks if a string is a valid HTTP protocol.
     For example: HTTP/1.1 is valid and HTTP-1.1 and HTTS/1.1 is not valid.
@@ -117,10 +117,11 @@ def validate_http_request(request):
     req_first_row_words = req_lines[0].split(' ')
     try:
         if len(req_first_row_words) == 3:
-            if req_first_row_words[0] == 'GET':
-                _is_valid_resource, _resource = is_valid_resource(req_first_row_words[1])
+            method, resource, protocol = req_first_row_words
+            if method == 'GET':
+                _is_valid_resource, _resource = is_valid_resource(resource)
                 if _is_valid_resource:
-                    if is_valid_HTTP(req_first_row_words[2]):
+                    if is_valid_protocol(protocol):
                         return True, _resource
 
     except Exception as ex:
