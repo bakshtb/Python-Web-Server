@@ -21,6 +21,7 @@ HTTP_RES_HEADER_500 = " 500 INTERNAL SERVER ERROR\r\n"
 FIXED_RESPONSE = "HTTP/1.0"
 REDIRECTION_DICTIONARY = {"test.html": "REDIRECTION_DICTIONARY_TEST/test.html", "admin": 'admin/admin_page.html'}
 NO_ACCESS = ['admin/admin_page.html']
+CONTENT_LENGTH = "Content-length: "
 
 IP = '0.0.0.0'
 PORT = 80
@@ -35,16 +36,15 @@ def get_file_data(file):
 
 def handle_client_request(resource, client_socket):
     """ Check the required resource, generate proper HTTP response and send to client"""
-    # TO DO : add code that given a resource (URL and parameters) generates the proper response
     try:
-        http_header = ""    # init
+        http_header = ""  # init
         data = b''  # init
 
         if resource == '':
             url = DEFAULT_URL
         else:
             url = resource
-        url = url.lower()   # to avoid loopholes
+        url = url.lower()  # to avoid loopholes
 
         if url in REDIRECTION_DICTIONARY:
             # send 302 redirection response
@@ -74,31 +74,55 @@ def handle_client_request(resource, client_socket):
 
             data = get_file_data(url)
 
-        http_response = (http_header + "\r\n").encode() + data
+        http_response = (http_header + CONTENT_LENGTH + str(len(data)) + "\r\n\r\n").encode() + data
         client_socket.send(http_response)
     except Exception as ex:
-        http_response = (HTTP_RES_HEADER_500 + "\r\n").encode()
+        http_response = (HTTP_RES_HEADER_500 + CONTENT_LENGTH + "0" + "\r\n\r\n").encode()
         client_socket.send(http_response)
+        print("ERROR", ex)
+
+
+def is_valid_HTTP(_str):
+    """
+    Checks if a string is a valid HTTP protocol.
+    For example: HTTP/1.1 is valid and HTTP-1.1 and HTTS/1.1 is not valid.
+    """
+    http_version_words = _str.split('/')
+    if len(http_version_words) == 2:  # (after '/' split)
+        if http_version_words[0] == 'HTTP':
+            if http_version_words[1].replace('.', '', 1).isdigit():  # if http version is number (include float).
+                return True
+            else:
+                return False
+
+
+def is_valid_resource(_str):
+    """
+    The function checks whether the string may be a correct resource.
+    In other words - if the string start with '/'
+    If the string is correct it will return the resource without the '/'
+    """
+    if _str.startswith("/"):  # resource string should start at /
+        res = _str[1:]  # remove the /
+        return True, res
+    else:
+        return False, None
 
 
 def validate_http_request(request):
     """
     Check if request is a valid HTTP request and returns TRUE / FALSE and the requested URL
     """
-    # request = str(request)
     req_lines = request.split('\r\n')
     req_first_row_words = req_lines[0].split(' ')
     try:
         if len(req_first_row_words) == 3:
             if req_first_row_words[0] == 'GET':
-                if req_first_row_words[1].startswith("/"):  # resource string should start at /
-                    req_first_row_words[1] = req_first_row_words[1][1:]  # remove the /
-                    http_version_words = req_first_row_words[2].split('/')
-                    if len(http_version_words) == 2:
-                        if http_version_words[0] == 'HTTP':
-                            # if http version is number (include float).
-                            if http_version_words[1].replace('.', '', 1).isdigit():
-                                return True, req_first_row_words[1]
+                _is_valid_resource, _resource = is_valid_resource(req_first_row_words[1])
+                if _is_valid_resource:
+                    if is_valid_HTTP(req_first_row_words[2]):
+                        return True, _resource
+
     except Exception as ex:
         return False, "ERROR: " + str(ex)
     return False, "ERROR"
